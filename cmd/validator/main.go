@@ -5,7 +5,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"strconv"
 
 	nlog "log"
 	"os"
@@ -18,8 +17,6 @@ import (
 	cryptoAmino "github.com/herdius/herdius-core/crypto/encoding/amino"
 	"github.com/herdius/herdius-core/hbi/message"
 	protoplugin "github.com/herdius/herdius-core/hbi/protobuf"
-	"github.com/herdius/herdius-core/p2p/crypto"
-	keystore "github.com/herdius/herdius-core/p2p/key"
 	"github.com/herdius/herdius-core/p2p/log"
 	"github.com/herdius/herdius-core/p2p/network"
 	"github.com/herdius/herdius-core/p2p/network/discovery"
@@ -73,19 +70,19 @@ func main() {
 	}
 
 	// Generate or Load Keys
-	nodeAddress := confg.SelfBroadcastIP + "_" + strconv.Itoa(port)
-	nodekey, err := keystore.LoadOrGenNodeKey(nodeKeydir + nodeAddress + "_sk_peer_id.json")
-	if err != nil {
-		log.Error().Msgf("Failed to create or load node key: %v", err)
-	}
-	privKey := nodekey.PrivKey
-	pubKey := privKey.PubKey()
-	keys := &crypto.KeyPair{
-		PublicKey:  pubKey.Bytes(),
-		PrivateKey: privKey.Bytes(),
-		PrivKey:    privKey,
-		PubKey:     pubKey,
-	}
+	// nodeAddress := confg.SelfBroadcastIP + "_" + strconv.Itoa(port)
+	// nodekey, err := keystore.LoadOrGenNodeKey(nodeKeydir + nodeAddress + "_sk_peer_id.json")
+	// if err != nil {
+	// 	log.Error().Msgf("Failed to create or load node key: %v", err)
+	// }
+	// privKey := nodekey.PrivKey
+	// pubKey := privKey.PubKey()
+	// keys := &crypto.KeyPair{
+	// 	PublicKey:  pubKey.Bytes(),
+	// 	PrivateKey: privKey.Bytes(),
+	// 	PrivKey:    privKey,
+	// 	PubKey:     pubKey,
+	// }
 
 	opcode.RegisterMessageType(opcode.Opcode(1111), &blockProtobuf.ChildBlockMessage{})
 	opcode.RegisterMessageType(opcode.Opcode(1112), &blockProtobuf.ConnectionMessage{})
@@ -111,7 +108,7 @@ func main() {
 	opcode.RegisterMessageType(opcode.Opcode(1132), &protoplugin.TxRedeemResponse{})
 
 	builder := network.NewBuilder(env)
-	builder.SetKeys(keys)
+	//builder.SetKeys(keys)
 
 	builder.SetAddress(network.FormatAddress(confg.Protocol, confg.SelfBroadcastIP, uint16(port)))
 
@@ -148,21 +145,23 @@ func main() {
 // validatorProcessor checks and validates all the new child blocks
 func validatorProcessor(net *network.Network, reader *bufio.Reader, peers []string) {
 	ctx := network.WithSignMessage(context.Background(), true)
-	if firstPingFromValidator == 0 {
-		supervisorClient, err := net.Client(peers[0])
-		if err != nil {
-			log.Printf("unable to get supervisor client: %+v", err)
-			return
-		}
-		reply, err := supervisorClient.Request(ctx, &blockProtobuf.ConnectionMessage{Message: "Connection established with Validator"})
-		if err != nil {
-			log.Printf("unable to request from client: %+v", err)
-			return
-		}
-		fmt.Println("Supervisor reply: " + reply.String())
-		firstPingFromValidator++
-		return
-	}
+	// if firstPingFromValidator == 0 {
+	// 	fmt.Println(firstPingFromValidator)
+
+	// 	supervisorClient, err := net.Client(peers[0])
+	// 	if err != nil {
+	// 		log.Printf("unable to get supervisor client: %+v", err)
+	// 		return
+	// 	}
+	// 	reply, err := supervisorClient.Request(ctx, &blockProtobuf.ConnectionMessage{Message: "Connection established with Validator"})
+	// 	if err != nil {
+	// 		log.Printf("unable to request from client: %+v", err)
+	// 		return
+	// 	}
+	// 	fmt.Println("Supervisor reply: " + reply.String())
+	// 	firstPingFromValidator++
+	// 	return
+	// }
 
 	// Check if a new child block has arrived
 	if isChildBlockReceivedByValidator {
@@ -194,4 +193,31 @@ func validatorProcessor(net *network.Network, reader *bufio.Reader, peers []stri
 		net.Broadcast(ctx, mcb)
 		isChildBlockReceivedByValidator = false
 	}
+}
+
+func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
+	switch msg := ctx.Message().(type) {
+	case *blockProtobuf.ConnectionMessage:
+		address := ctx.Client().ID.Address
+
+		log.Info().Msgf("<%s> %s", address, msg.Message)
+
+		sender, err := ctx.Network().Client(ctx.Client().Address)
+		if err != nil {
+			return fmt.Errorf("failed to get client network: %v", err)
+		}
+		nonce := 1
+		err = sender.Reply(network.WithSignMessage(context.Background(), true), uint64(nonce),
+			&blockProtobuf.ConnectionMessage{Message: "Connection established with Supervisor"})
+		if err != nil {
+			return fmt.Errorf(fmt.Sprintf("Failed to reply to client: %v", err))
+		}
+	case *blockProtobuf.ChildBlockMessage:
+		// mcb = msg
+		// vote := mcb.GetVote()
+
+		isChildBlockReceivedByValidator = true
+
+	}
+	return nil
 }
