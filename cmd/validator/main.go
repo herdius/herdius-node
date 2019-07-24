@@ -22,6 +22,9 @@ import (
 	"github.com/herdius/herdius-core/p2p/network/discovery"
 	"github.com/herdius/herdius-core/p2p/types/opcode"
 	amino "github.com/tendermint/go-amino"
+	keystore "github.com/herdius/herdius-core/p2p/key"
+	"github.com/herdius/herdius-core/p2p/crypto"
+
 
 	"github.com/herdius/herdius-node/validator/service"
 )
@@ -39,7 +42,7 @@ var mcb = &blockProtobuf.ChildBlockMessage{}
 // firstPingFromValidator checks whether a connection is established betweer supervisor and validator.
 // And it is used to send a message on established connection.
 var firstPingFromValidator = 0
-var nodeKeydir = "../testdata/secp205k1Accts/"
+var nodeKey = "../../nodekey.json"
 
 // HerdiusMessagePlugin will receive all transmitted messages.
 type HerdiusMessagePlugin struct{ *network.Plugin }
@@ -69,20 +72,20 @@ func main() {
 		port = confg.SelfBroadcastPort
 	}
 
-	// Generate or Load Keys
-	// nodeAddress := confg.SelfBroadcastIP + "_" + strconv.Itoa(port)
-	// nodekey, err := keystore.LoadOrGenNodeKey(nodeKeydir + nodeAddress + "_sk_peer_id.json")
-	// if err != nil {
-	// 	log.Error().Msgf("Failed to create or load node key: %v", err)
-	// }
-	// privKey := nodekey.PrivKey
-	// pubKey := privKey.PubKey()
-	// keys := &crypto.KeyPair{
-	// 	PublicKey:  pubKey.Bytes(),
-	// 	PrivateKey: privKey.Bytes(),
-	// 	PrivKey:    privKey,
-	// 	PubKey:     pubKey,
-	// }
+	//Generate or Load Keys
+	//nodeAddress := confg.SelfBroadcastIP + "_" + strconv.Itoa(port)
+	nodekey, err := keystore.LoadOrGenNodeKey(nodeKey)
+	if err != nil {
+		log.Error().Msgf("Failed to create or load node key: %v", err)
+	}
+	privKey := nodekey.PrivKey
+	pubKey := privKey.PubKey()
+	keys := &crypto.KeyPair{
+		PublicKey:  pubKey.Bytes(),
+		PrivateKey: privKey.Bytes(),
+		PrivKey:    privKey,
+		PubKey:     pubKey,
+	}
 
 	opcode.RegisterMessageType(opcode.Opcode(1111), &blockProtobuf.ChildBlockMessage{})
 	opcode.RegisterMessageType(opcode.Opcode(1112), &blockProtobuf.ConnectionMessage{})
@@ -108,7 +111,7 @@ func main() {
 	opcode.RegisterMessageType(opcode.Opcode(1132), &protoplugin.TxRedeemResponse{})
 
 	builder := network.NewBuilder(env)
-	//builder.SetKeys(keys)
+	builder.SetKeys(keys)
 
 	builder.SetAddress(network.FormatAddress(confg.Protocol, confg.SelfBroadcastIP, uint16(port)))
 
@@ -213,8 +216,10 @@ func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
 			return fmt.Errorf(fmt.Sprintf("Failed to reply to client: %v", err))
 		}
 	case *blockProtobuf.ChildBlockMessage:
-		// mcb = msg
-		// vote := mcb.GetVote()
+		mcb = msg
+		//vote := mcb.GetVote()
+
+		fmt.Println(mcb)
 
 		isChildBlockReceivedByValidator = true
 

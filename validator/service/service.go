@@ -75,13 +75,19 @@ func (v *Validator) VerifyTxs(rootHash []byte, txs [][]byte) error {
 		if err != nil {
 			return fmt.Errorf("Failed to parse transaction value: %v", err)
 		}
-		fee, err := strconv.ParseUint(txValue.Asset.Fee, 10, 64)
-		if err != nil {
-			return fmt.Errorf("Failed to parse transaction fee: %v", err)
+		fee := uint64(0)
+		if txValue.Asset.Fee != "" {
+			fee, err = strconv.ParseUint(txValue.Asset.Fee, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Failed to parse transaction fee: %v", err)
+			}
 		}
-		nonc, err := strconv.ParseUint(txValue.Asset.Nonce, 10, 64)
-		if err != nil {
-			return fmt.Errorf("Failed to parse transaction nonce: %v", err)
+		nonc := uint64(0)
+		if txValue.Asset.Nonce != "" {
+			nonc, err = strconv.ParseUint(txValue.Asset.Nonce, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Failed to parse transaction nonce: %v", err)
+			}
 		}
 		asset := &pluginproto.Asset{
 			Category: txValue.Asset.Category,
