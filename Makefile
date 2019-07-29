@@ -43,7 +43,7 @@ build:
 	$(GOBUILD) ./...
 
 build-node:
-	$(GOBUILD) -o ./node ./cmd/validator/main.go
+	$(GOBUILD) -o ./node ./cmd/validator
 
 run-test:
 	@$(GOTEST) -v ./...
