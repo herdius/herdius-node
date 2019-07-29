@@ -30,6 +30,12 @@ else
 	GOPARAMETERS := $(GOPARAMETERS) '-env='$(ENV)
 endif
 
+ifeq (,$(subst ,,$(SELFIP)))
+	GOPARAMETERS := $(GOPARAMETERS) '-selfip=127.0.0.1'
+else
+	GOPARAMETERS := $(GOPARAMETERS) '-selfip='$(SELFIP)
+endif
+
 install:
 	$(GOGET) ./...
 

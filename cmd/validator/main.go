@@ -13,7 +13,6 @@ import (
 	"github.com/herdius/herdius-core/blockchain"
 	"github.com/herdius/herdius-core/blockchain/protobuf"
 	blockProtobuf "github.com/herdius/herdius-core/blockchain/protobuf"
-	"github.com/herdius/herdius-core/config"
 	cryptoAmino "github.com/herdius/herdius-core/crypto/encoding/amino"
 	"github.com/herdius/herdius-core/hbi/message"
 	protoplugin "github.com/herdius/herdius-core/hbi/protobuf"
@@ -50,21 +49,23 @@ func main() {
 	// process other flags
 	peersFlag := flag.String("peers", "", "peers to connect to")
 	portFlag := flag.Int("port", 0, "port to bind validator to")
+	selfIPFlag := flag.String("selfip", "127.0.0.1", "port to bind validator to")
+
 	envFlag := flag.String("env", "dev", "environment to build network and run process for")
 	flag.Parse()
 
 	port := *portFlag
+	selfip := *selfIPFlag
 	env := *envFlag
-	confg := config.GetConfiguration(env)
 	peers := []string{}
 	if len(*peersFlag) == 0 {
 		log.Fatal().Msg("no supervisor node address provided")
 	}
 	peers = strings.Split(*peersFlag, ",")
 
-	if port == 0 {
-		port = confg.SelfBroadcastPort
-	}
+	// if port == 0 {
+	// 	port = confg.SelfBroadcastPort
+	// }
 
 	//Generate or Load Keys
 	//nodeAddress := confg.SelfBroadcastIP + "_" + strconv.Itoa(port)
@@ -107,7 +108,7 @@ func main() {
 	builder := network.NewBuilder(env)
 	builder.SetKeys(keys)
 
-	builder.SetAddress(network.FormatAddress(confg.Protocol, confg.SelfBroadcastIP, uint16(port)))
+	builder.SetAddress(network.FormatAddress("tcp", selfip, uint16(port)))
 
 	// Register peer discovery plugin.
 	builder.AddPlugin(new(discovery.Plugin))
@@ -133,7 +134,7 @@ func main() {
 	}()
 
 	ctrl := make(chan os.Signal, 1)
-	signal.Notify(ctrl, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(ctrl, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		for sig := range ctrl {
 			fmt.Printf("Captured %v shutting down node", sig)
