@@ -1,10 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
+	"os/signal"
+	"syscall"
 
 	nlog "log"
 	"os"
@@ -17,16 +18,14 @@ import (
 	cryptoAmino "github.com/herdius/herdius-core/crypto/encoding/amino"
 	"github.com/herdius/herdius-core/hbi/message"
 	protoplugin "github.com/herdius/herdius-core/hbi/protobuf"
+	"github.com/herdius/herdius-core/p2p/crypto"
+	keystore "github.com/herdius/herdius-core/p2p/key"
 	"github.com/herdius/herdius-core/p2p/log"
 	"github.com/herdius/herdius-core/p2p/network"
 	"github.com/herdius/herdius-core/p2p/network/discovery"
 	"github.com/herdius/herdius-core/p2p/types/opcode"
-	amino "github.com/tendermint/go-amino"
-	keystore "github.com/herdius/herdius-core/p2p/key"
-	"github.com/herdius/herdius-core/p2p/crypto"
-
-
 	"github.com/herdius/herdius-node/validator/service"
+	amino "github.com/tendermint/go-amino"
 )
 
 var cdc = amino.NewCodec()
@@ -138,68 +137,24 @@ func main() {
 		c.IsConnected(net, peers)
 	}()
 
-	reader := bufio.NewReader(os.Stdin)
-
-	for {
-		validatorProcessor(net, reader, peers)
-	}
-}
-
-// validatorProcessor checks and validates all the new child blocks
-func validatorProcessor(net *network.Network, reader *bufio.Reader, peers []string) {
-	ctx := network.WithSignMessage(context.Background(), true)
-	// if firstPingFromValidator == 0 {
-	// 	fmt.Println(firstPingFromValidator)
-
-	// 	supervisorClient, err := net.Client(peers[0])
-	// 	if err != nil {
-	// 		log.Printf("unable to get supervisor client: %+v", err)
-	// 		return
-	// 	}
-	// 	reply, err := supervisorClient.Request(ctx, &blockProtobuf.ConnectionMessage{Message: "Connection established with Validator"})
-	// 	if err != nil {
-	// 		log.Printf("unable to request from client: %+v", err)
-	// 		return
-	// 	}
-	// 	fmt.Println("Supervisor reply: " + reply.String())
-	// 	firstPingFromValidator++
-	// 	return
-	// }
-
-	// Check if a new child block has arrived
-	if isChildBlockReceivedByValidator {
-		vService := service.Validator{}
-
-		//Get all the transaction data included in the child block
-		txsData := mcb.GetChildBlock().GetTxsData()
-		if txsData == nil {
-			fmt.Println("No txsData")
-			isChildBlockReceivedByValidator = false
-			return
+	ctrl := make(chan os.Signal, 1)
+	signal.Notify(ctrl, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		for sig := range ctrl {
+			net.Close()
+			fmt.Println("Closing Network")
+			os.Exit(1)
 		}
-		txs := txsData.Tx
+	}()
 
-		//Get Root hash of the transactions
-		cbRootHash := mcb.GetChildBlock().GetHeader().GetRootHash()
-		err := vService.VerifyTxs(cbRootHash, txs)
-		if err != nil {
-			fmt.Println("Failed to verify transaction:", err)
-			return
-		}
-
-		// Sign and vote the child block
-		err = vService.Vote(net, net.Address, mcb)
-		if err != nil {
-			net.Broadcast(ctx, &blockProtobuf.ConnectionMessage{Message: "Failed to get vote"})
-		}
-
-		net.Broadcast(ctx, mcb)
-		isChildBlockReceivedByValidator = false
-	}
+	<-ctrl
 }
 
 func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
+	contex := network.WithSignMessage(context.Background(), true)
+
 	switch msg := ctx.Message().(type) {
+
 	case *blockProtobuf.ConnectionMessage:
 		address := ctx.Client().ID.Address
 
@@ -219,10 +174,31 @@ func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
 		mcb = msg
 		//vote := mcb.GetVote()
 
-		fmt.Println(mcb)
+		vService := service.Validator{}
 
-		isChildBlockReceivedByValidator = true
+		//Get all the transaction data included in the child block
+		txsData := mcb.GetChildBlock().GetTxsData()
+		if txsData == nil {
+			fmt.Println("No txsData")
+			return nil
+		}
+		txs := txsData.Tx
 
+		//Get Root hash of the transactions
+		cbRootHash := mcb.GetChildBlock().GetHeader().GetRootHash()
+		err := vService.VerifyTxs(cbRootHash, txs)
+		if err != nil {
+			fmt.Println("Failed to verify transaction:", err)
+			return nil
+		}
+
+		// Sign and vote the child block
+		err = vService.Vote(ctx.Network(), ctx.Network().Address, mcb)
+		if err != nil {
+			ctx.Network().Broadcast(contex, &blockProtobuf.ConnectionMessage{Message: "Failed to get vote"})
+		}
+
+		ctx.Network().Broadcast(contex, mcb)
 	}
 	return nil
 }
