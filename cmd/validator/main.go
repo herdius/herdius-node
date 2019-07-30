@@ -35,9 +35,6 @@ var isChildBlockReceivedByValidator = false
 // Child block message object received
 var mcb = &blockProtobuf.ChildBlockMessage{}
 
-// firstPingFromValidator checks whether a connection is established betweer supervisor and validator.
-// And it is used to send a message on established connection.
-var firstPingFromValidator = 0
 var nodeKey = "../../nodekey.json"
 
 func init() {
@@ -63,12 +60,6 @@ func main() {
 	}
 	peers = strings.Split(*peersFlag, ",")
 
-	// if port == 0 {
-	// 	port = confg.SelfBroadcastPort
-	// }
-
-	//Generate or Load Keys
-	//nodeAddress := confg.SelfBroadcastIP + "_" + strconv.Itoa(port)
 	nodekey, err := keystore.LoadOrGenNodeKey(nodeKey)
 	if err != nil {
 		log.Error().Msgf("Failed to create or load node key: %v", err)

@@ -17,7 +17,7 @@ endif
 
 
 ifeq (,$(subst ,,$(PORT)))
-	GOPARAMETERS := $(GOPARAMETERS) '-port=0'
+	GOPARAMETERS := $(GOPARAMETERS) '-port=3001'
 else
 	GOPARAMETERS := $(GOPARAMETERS) '-port='$(PORT)
 endif
