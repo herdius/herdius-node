@@ -10,6 +10,6 @@ or
 
 ```
 make build-node
-./node -selfip 127.0.0.1 -port 3001 -peers tcp://127.0.0.1:3000 
+./node -selfip 127.0.0.1 -port 3001 -peers tcp://127.0.0.1:3000   
 
 ```

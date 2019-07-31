@@ -48,12 +48,11 @@ func main() {
 	portFlag := flag.Int("port", 0, "port to bind validator to")
 	selfIPFlag := flag.String("selfip", "127.0.0.1", "port to bind validator to")
 
-	envFlag := flag.String("env", "dev", "environment to build network and run process for")
 	flag.Parse()
 
 	port := *portFlag
 	selfip := *selfIPFlag
-	env := *envFlag
+
 	peers := []string{}
 	if len(*peersFlag) == 0 {
 		log.Fatal().Msg("no supervisor node address provided")
@@ -96,7 +95,7 @@ func main() {
 	opcode.RegisterMessageType(opcode.Opcode(1131), &protoplugin.TxRedeemRequest{})
 	opcode.RegisterMessageType(opcode.Opcode(1132), &protoplugin.TxRedeemResponse{})
 
-	builder := network.NewBuilder(env)
+	builder := network.NewBuilderWithOptions(network.Address("tcp://" + selfip + ":" + port))
 	builder.SetKeys(keys)
 
 	builder.SetAddress(network.FormatAddress("tcp", selfip, uint16(port)))
