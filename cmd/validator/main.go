@@ -95,7 +95,7 @@ func main() {
 	opcode.RegisterMessageType(opcode.Opcode(1131), &protoplugin.TxRedeemRequest{})
 	opcode.RegisterMessageType(opcode.Opcode(1132), &protoplugin.TxRedeemResponse{})
 
-	builder := network.NewBuilderWithOptions(network.Address("tcp://" + selfip + ":" + port))
+	builder := network.NewBuilderWithOptions(network.Address("tcp://" + selfip + ":" + string(port)))
 	builder.SetKeys(keys)
 
 	builder.SetAddress(network.FormatAddress("tcp", selfip, uint16(port)))
