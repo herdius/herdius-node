@@ -1,0 +1,26 @@
+version: '3.3'
+
+
+networks:
+  net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/24
+
+services:
+  hernode:
+    build:
+        context: .
+        dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - net
+    ports:
+      - 3001-4000:3001
+    environment:
+      - PEERS=tcp://54.209.249.119:3000
+      - SELFIP=hernode
+      - PORT=3001
+
+
