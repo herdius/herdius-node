@@ -14,8 +14,8 @@ import (
 type HerdiusMessagePlugin struct{ *network.Plugin }
 
 func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
-	contex := network.WithSignMessage(context.Background(), true)
-
+	//contex := network.WithSignMessage(context.Background(), true)
+	fmt.Println("msg has arrived: ", ctx.Message())
 	switch msg := ctx.Message().(type) {
 
 	case *blockProtobuf.ConnectionMessage:
@@ -58,10 +58,14 @@ func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
 		// Sign and vote the child block
 		err = vService.Vote(ctx.Network(), ctx.Network().Address, mcb)
 		if err != nil {
-			ctx.Network().Broadcast(contex, &blockProtobuf.ConnectionMessage{Message: "Failed to get vote"})
+			if voteErr := ctx.Reply(network.WithSignMessage(context.Background(), true), &blockProtobuf.ConnectionMessage{Message: "Failed to get vote"}); voteErr != nil {
+				return fmt.Errorf(fmt.Sprintf("Failed to reply to client :%v", voteErr))
+			}
 		}
 
-		ctx.Network().Broadcast(contex, mcb)
+		if err := ctx.Reply(network.WithSignMessage(context.Background(), true), mcb); err != nil {
+			return fmt.Errorf(fmt.Sprintf("Failed to reply to client :%v", err))
+		}
 	}
 	return nil
 }
