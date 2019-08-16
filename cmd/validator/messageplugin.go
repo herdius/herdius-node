@@ -14,8 +14,6 @@ import (
 type HerdiusMessagePlugin struct{ *network.Plugin }
 
 func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
-	//contex := network.WithSignMessage(context.Background(), true)
-	fmt.Println("msg has arrived: ", ctx.Message())
 	switch msg := ctx.Message().(type) {
 
 	case *blockProtobuf.ConnectionMessage:
@@ -34,9 +32,8 @@ func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
 			return fmt.Errorf(fmt.Sprintf("Failed to reply to client: %v", err))
 		}
 	case *blockProtobuf.ChildBlockMessage:
+		log.Info().Msgf("New child block has arrived: %+v", msg.ChildBlock)
 		mcb = msg
-		//vote := mcb.GetVote()
-
 		vService := service.Validator{}
 
 		//Get all the transaction data included in the child block
