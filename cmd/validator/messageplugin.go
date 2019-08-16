@@ -14,8 +14,6 @@ import (
 type HerdiusMessagePlugin struct{ *network.Plugin }
 
 func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
-	contex := network.WithSignMessage(context.Background(), true)
-
 	switch msg := ctx.Message().(type) {
 
 	case *blockProtobuf.ConnectionMessage:
@@ -34,9 +32,8 @@ func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
 			return fmt.Errorf(fmt.Sprintf("Failed to reply to client: %v", err))
 		}
 	case *blockProtobuf.ChildBlockMessage:
+		log.Info().Msgf("New child block has arrived: %+v", msg.ChildBlock)
 		mcb = msg
-		//vote := mcb.GetVote()
-
 		vService := service.Validator{}
 
 		//Get all the transaction data included in the child block
@@ -58,10 +55,14 @@ func (state *HerdiusMessagePlugin) Receive(ctx *network.PluginContext) error {
 		// Sign and vote the child block
 		err = vService.Vote(ctx.Network(), ctx.Network().Address, mcb)
 		if err != nil {
-			ctx.Network().Broadcast(contex, &blockProtobuf.ConnectionMessage{Message: "Failed to get vote"})
+			if voteErr := ctx.Reply(network.WithSignMessage(context.Background(), true), &blockProtobuf.ConnectionMessage{Message: "Failed to get vote"}); voteErr != nil {
+				return fmt.Errorf(fmt.Sprintf("Failed to reply to client :%v", voteErr))
+			}
 		}
 
-		ctx.Network().Broadcast(contex, mcb)
+		if err := ctx.Reply(network.WithSignMessage(context.Background(), true), mcb); err != nil {
+			return fmt.Errorf(fmt.Sprintf("Failed to reply to client :%v", err))
+		}
 	}
 	return nil
 }
