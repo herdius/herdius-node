@@ -71,9 +71,12 @@ func (v *Validator) VerifyTxs(rootHash []byte, txs [][]byte) error {
 		}
 
 		copy(pubKey[:], pubKeyS)
-		val, err := strconv.ParseUint(txValue.Asset.Value, 10, 64)
-		if err != nil {
-			return fmt.Errorf("Failed to parse transaction value: %v", err)
+		val := uint64(0)
+		if txValue.Asset.Value != "" {
+			val, err = strconv.ParseUint(txValue.Asset.Value, 10, 64)
+			if err != nil {
+				return fmt.Errorf("Failed to parse transaction value: %v", err)
+			}
 		}
 		fee := uint64(0)
 		if txValue.Asset.Fee != "" {
@@ -90,12 +93,15 @@ func (v *Validator) VerifyTxs(rootHash []byte, txs [][]byte) error {
 			}
 		}
 		asset := &pluginproto.Asset{
-			Category: txValue.Asset.Category,
-			Symbol:   txValue.Asset.Symbol,
-			Network:  txValue.Asset.Network,
-			Value:    val,
-			Fee:      fee,
-			Nonce:    nonc,
+			Category:              txValue.Asset.Category,
+			Symbol:                txValue.Asset.Symbol,
+			Network:               txValue.Asset.Network,
+			Value:                 val,
+			Fee:                   fee,
+			Nonce:                 nonc,
+			ExternalSenderAddress: txValue.Asset.ExternalSenderAddress,
+			LockedAmount:          txValue.Asset.LockedAmount,
+			RedeemedAmount:        txValue.Asset.RedeemedAmount,
 		}
 		verifiableTx := pluginproto.Tx{
 			SenderAddress:   txValue.SenderAddress,
